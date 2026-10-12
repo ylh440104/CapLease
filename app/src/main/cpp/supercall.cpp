@@ -15,33 +15,38 @@ constexpr long encodeOp(std::uint32_t op) noexcept
 
 }
 
-long Supercall::exchange(Request* request, Response* response) noexcept
+long Supercall::exchange(Exchange* exchange) noexcept
 {
-    if (request == nullptr || response == nullptr) {
+    if (exchange == nullptr) {
         return -EINVAL;
     }
 
-    return ::syscall(
-        static_cast<long>(kSupercallNumber),
-        request,
-        response,
-        encodeOp(request->op));
-}
+    exchange->request.magic = kProtocolMagic;
+    exchange->request.version = kProtocolVersion;
+    exchange->response.status = 0;
+    exchange->response.payloadLength = 0;
+    exchange->response.value = 0;
 
-long Supercall::hello() noexcept
-{
     return ::syscall(
         static_cast<long>(kSupercallNumber),
-        static_cast<void*>(nullptr),
-        static_cast<void*>(nullptr),
-        encodeOp(static_cast<std::uint32_t>(Op::Hello)));
+        static_cast<void*>(exchange),
+        encodeOp(exchange->request.op));
 }
 
 bool Supercall::available() noexcept
 {
+    Exchange probe{};
+    probe.request.op = static_cast<std::uint32_t>(Op::Hello);
+
     errno = 0;
-    const long result = hello();
-    return result >= 0 && errno != ENOSYS;
+    const long result = exchange(&probe);
+
+    if (result < 0) {
+        return false;
+    }
+
+    return probe.response.status == 0
+        && probe.response.value == static_cast<std::uint64_t>(kProtocolMagic);
 }
 
 }
