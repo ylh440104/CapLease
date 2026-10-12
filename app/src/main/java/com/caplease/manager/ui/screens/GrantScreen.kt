@@ -257,6 +257,7 @@ private fun durationToFraction(seconds: Long): Float {
 
 private fun fractionToDuration(fraction: Float): Long {
     val normalized = fraction.toDouble().coerceIn(0.0, 1.0)
-    val seconds = DURATION_MIN_SECONDS * pow(DURATION_MAX_SECONDS / DURATION_MIN_SECONDS, normalized)
+    val ratio = DURATION_MAX_SECONDS / DURATION_MIN_SECONDS
+    val seconds = DURATION_MIN_SECONDS * ratio.pow(normalized)
     return seconds.toLong().coerceAtLeast(DURATION_MIN_SECONDS.toLong())
 }
