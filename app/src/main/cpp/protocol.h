@@ -5,10 +5,10 @@
 
 namespace caplease {
 
-inline constexpr long kSupercallNumber = 435;
+inline constexpr long kSupercallNumber = 45;
 
 inline constexpr std::uint32_t kProtocolMagic = 0x434C5031u;
-inline constexpr std::uint32_t kProtocolVersion = 1u;
+inline constexpr std::uint32_t kProtocolVersion = 2u;
 
 inline constexpr std::size_t kTokenSize = 32;
 inline constexpr std::size_t kNonceSize = 32;
@@ -92,6 +92,11 @@ struct Response {
     std::uint32_t payloadLength;
     std::uint64_t value;
     std::uint8_t payload[kPayloadSize];
+};
+
+struct Exchange {
+    Request request;
+    Response response;
 };
 
 struct LeaseRecord {
