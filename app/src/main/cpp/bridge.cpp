@@ -78,10 +78,12 @@ void attachPayload(Request& request, const void* payload, std::size_t length) no
 
 jint submit(const Request& request, Response& response) noexcept
 {
-    std::memset(&response, 0, sizeof(response));
+    Exchange exchange{};
+    exchange.request = request;
 
-    auto mutableRequest = request;
-    const long result = Supercall::exchange(&mutableRequest, &response);
+    const long result = Supercall::exchange(&exchange);
+
+    response = exchange.response;
 
     if (result < 0) {
         return static_cast<jint>(Status::NotReady);
