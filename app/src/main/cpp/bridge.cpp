@@ -290,7 +290,7 @@ Java_com_caplease_manager_kernel_NativeBridge_nativeOpenSession(
 
     if (status != kOk || challengeResponse.payloadLength < kChallengePayloadSize) {
         caplease::crypto::wipe(passwordBuffer, sizeof(passwordBuffer));
-        values[0] = static_cast<jlong>(status == kOk ? Status::Internal : status);
+        values[0] = static_cast<jlong>(status == kOk ? static_cast<jint>(Status::Internal) : status);
         env->SetLongArrayRegion(result, 0, 4, values);
         return result;
     }
