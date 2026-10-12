@@ -8,8 +8,7 @@ namespace caplease {
 
 class Supercall {
 public:
-    static long hello() noexcept;
-    static long exchange(Request* request, Response* response) noexcept;
+    static long exchange(Exchange* exchange) noexcept;
     static bool available() noexcept;
 };
 
