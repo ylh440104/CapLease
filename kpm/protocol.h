@@ -4,14 +4,14 @@
 #include <stdint.h>
 
 #define CL_PROTOCOL_MAGIC 0x434C5031u
-#define CL_PROTOCOL_VERSION 1u
+#define CL_PROTOCOL_VERSION 2u
 
 #define CL_TOKEN_SIZE 32
 #define CL_NONCE_SIZE 32
 #define CL_PAYLOAD_SIZE 512
 #define CL_PACKAGE_MAX 128
 
-#define CL_SUPERCALL_NR 435
+#define CL_SUPERCALL_NR 45
 
 #define CL_MAX_LEASES 64
 #define CL_MAX_SESSIONS 16
@@ -106,6 +106,11 @@ struct cl_response {
     uint32_t payload_length;
     uint64_t value;
     uint8_t payload[CL_PAYLOAD_SIZE];
+};
+
+struct cl_exchange {
+    struct cl_request request;
+    struct cl_response response;
 };
 
 struct cl_lease_record {
