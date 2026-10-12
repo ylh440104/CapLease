@@ -30,7 +30,7 @@ class ManagerViewModel(application: Application) : AndroidViewModel(application)
     init {
         refreshKernel()
         observeClock()
-        refreshPairing()
+        viewModelScope.launch { refreshPairing() }
     }
 
     private fun observeClock() {
@@ -350,7 +350,7 @@ class ManagerViewModel(application: Application) : AndroidViewModel(application)
 
     override fun onCleared() {
         super.onCleared()
-        client.closeSession()
+        viewModelScope.launch { client.closeSession() }
     }
 
     private companion object {
