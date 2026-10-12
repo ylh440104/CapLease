@@ -10,6 +10,7 @@
 #include <kpmalloc.h>
 #include <kputils.h>
 #include <sha256.h>
+#include <syscall.h>
 
 #include "protocol.h"
 #include "state.h"
@@ -33,6 +34,7 @@ static unsigned long (*cl_copy_from_user)(void *, const void *, unsigned long) =
 static unsigned long (*cl_copy_to_user)(void *, const void *, unsigned long) = 0;
 
 static bool cl_hook_installed = false;
+static unsigned long g_hook_target = 0;
 
 static bool cl_resolve_symbols(void)
 {
@@ -698,46 +700,38 @@ static void cl_dispatch(
     }
 }
 
-static void cl_on_syscall(hook_fargs4_t *fargs, void *udata)
+static void cl_on_syscall(hook_fargs3_t *fargs, void *udata)
 {
-    if ((uint32_t)fargs->arg0 != CL_SUPERCALL_NR) {
+    uint32_t tag = (uint32_t)syscall_argn(fargs, 1);
+
+    if ((tag & CL_TAG_PREFIX_MASK) != CL_TAG_PREFIX) {
         return;
     }
 
-    const struct cl_request *user_request = (const struct cl_request *)fargs->arg1;
-    struct cl_response *user_response = (struct cl_response *)fargs->arg2;
-    uint32_t tag = (uint32_t)fargs->arg3;
+    struct cl_exchange *user_exchange = (struct cl_exchange *)syscall_argn(fargs, 0);
 
     fargs->skip_origin = 1;
     fargs->ret = 0;
 
-    if ((tag & CL_TAG_PREFIX_MASK) != CL_TAG_PREFIX) {
-        fargs->ret = (uint64_t)(int64_t)CL_ERR_BAD_MAGIC;
-        return;
-    }
-
-    if (user_request == 0 || user_response == 0 || g_context == 0) {
+    if (user_exchange == 0 || g_context == 0) {
         fargs->ret = (uint64_t)(int64_t)CL_ERR_INVALID_ARGUMENT;
         return;
     }
 
-    struct cl_request local_request;
-    struct cl_response local_response;
+    struct cl_exchange local_exchange;
+    memset(&local_exchange, 0, sizeof(local_exchange));
 
-    memset(&local_request, 0, sizeof(local_request));
-    memset(&local_response, 0, sizeof(local_response));
-
-    if (cl_copy_from_user(&local_request, user_request, (unsigned long)sizeof(local_request)) != 0) {
+    if (cl_copy_from_user(&local_exchange, user_exchange, (unsigned long)sizeof(local_exchange)) != 0) {
         fargs->ret = (uint64_t)(int64_t)CL_ERR_INVALID_ARGUMENT;
         return;
     }
 
-    if (local_request.magic != CL_TAG_MAGIC) {
+    if (local_exchange.request.magic != CL_TAG_MAGIC) {
         fargs->ret = (uint64_t)(int64_t)CL_ERR_BAD_MAGIC;
         return;
     }
 
-    if (local_request.version != CL_PROTOCOL_VERSION) {
+    if (local_exchange.request.version != CL_PROTOCOL_VERSION) {
         fargs->ret = (uint64_t)(int64_t)CL_ERR_BAD_VERSION;
         return;
     }
@@ -747,9 +741,13 @@ static void cl_on_syscall(hook_fargs4_t *fargs, void *udata)
     cl_session_sweep(g_context, now);
     cl_lease_sweep(g_context, now);
 
-    cl_dispatch(&local_request, &local_response, local_request.op, now);
+    cl_dispatch(
+        &local_exchange.request,
+        &local_exchange.response,
+        local_exchange.request.op,
+        now);
 
-    if (cl_copy_to_user(user_response, &local_response, (unsigned long)sizeof(local_response)) != 0) {
+    if (cl_copy_to_user(user_exchange, &local_exchange, (unsigned long)sizeof(local_exchange)) != 0) {
         fargs->ret = (uint64_t)(int64_t)CL_ERR_INTERNAL;
         return;
     }
@@ -774,15 +772,15 @@ static long cl_module_init(const char *args, const char *event, void *reserved)
     cl_state_reset(g_context);
     cl_state_seed(g_context, cl_now(), (uint64_t)kpver);
 
-    unsigned long target = kallsyms_lookup_name("el0_svc_common");
+    unsigned long target = syscalln_addr(CL_SUPERCALL_NR, 0);
     if (target == 0) {
-        logke("caplease: el0_svc_common missing\n");
+        logke("caplease: syscall %d has no handler\n", CL_SUPERCALL_NR);
         kp_free(g_context);
         g_context = 0;
         return -1;
     }
 
-    hook_err_t status = hook_wrap4((void *)target, (void *)cl_on_syscall, 0, 0);
+    hook_err_t status = hook_wrap3((void *)target, (void *)cl_on_syscall, 0, 0);
     if (status != HOOK_NO_ERR) {
         logke("caplease: hook failed, err=%d\n", status);
         kp_free(g_context);
@@ -791,8 +789,9 @@ static long cl_module_init(const char *args, const char *event, void *reserved)
     }
 
     cl_hook_installed = true;
+    g_hook_target = target;
 
-    logki("caplease: ready, kpver=%x kver=%x\n", kpver, kver);
+    logki("caplease: ready, target=%lx kpver=%x kver=%x\n", target, kpver, kver);
     return 0;
 }
 
@@ -811,12 +810,10 @@ static long cl_module_exit(void *reserved)
 {
     logki("caplease: exit\n");
 
-    if (cl_hook_installed) {
-        unsigned long target = kallsyms_lookup_name("el0_svc_common");
-        if (target != 0) {
-            hook_unwrap((void *)target, (void *)cl_on_syscall, 0);
-        }
+    if (cl_hook_installed && g_hook_target != 0) {
+        hook_unwrap((void *)g_hook_target, (void *)cl_on_syscall, 0);
         cl_hook_installed = false;
+        g_hook_target = 0;
     }
 
     if (g_context != 0) {
