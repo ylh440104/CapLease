@@ -11,6 +11,7 @@
 
 namespace {
 
+using caplease::Exchange;
 using caplease::Op;
 using caplease::Request;
 using caplease::Response;
