@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ReceiptLong
@@ -38,10 +39,12 @@ import com.caplease.manager.ui.screens.ExecScreen
 import com.caplease.manager.ui.screens.GrantScreen
 import com.caplease.manager.ui.screens.LeasesScreen
 import com.caplease.manager.ui.screens.OverviewScreen
+import com.caplease.manager.ui.screens.PatchScreen
 import com.caplease.manager.ui.screens.SessionScreen
 
 private enum class Destination(val label: String, val icon: ImageVector) {
     Overview("状态", Icons.Filled.Shield),
+    Patch("修补", Icons.Filled.Build),
     Session("会话", Icons.Filled.Lock),
     Grant("签发", Icons.Filled.VerifiedUser),
     Leases("租约", Icons.Filled.Bolt),
@@ -51,9 +54,13 @@ private enum class Destination(val label: String, val icon: ImageVector) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ManagerApp(viewModel: ManagerViewModel = viewModel()) {
+fun ManagerApp(
+    viewModel: ManagerViewModel = viewModel(),
+    patchViewModel: PatchViewModel = viewModel()
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val patchState by patchViewModel.state.collectAsStateWithLifecycle()
 
     var destination by rememberSaveable { mutableStateOf(Destination.Overview.name) }
     val current = Destination.valueOf(destination)
@@ -103,6 +110,13 @@ fun ManagerApp(viewModel: ManagerViewModel = viewModel()) {
                 Destination.Overview -> OverviewScreen(
                     state = state,
                     onRefresh = viewModel::refreshKernel
+                )
+                Destination.Patch -> PatchScreen(
+                    state = patchState,
+                    onImport = patchViewModel::importBoot,
+                    onSuperKey = patchViewModel::updateSuperKey,
+                    onPatch = patchViewModel::patch,
+                    onReset = patchViewModel::reset
                 )
                 Destination.Session -> SessionScreen(
                     state = state,
