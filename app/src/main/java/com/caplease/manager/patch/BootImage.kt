@@ -79,16 +79,16 @@ internal fun ByteArray.asAscii(): String =
 
 internal fun ByteArray.uint32At(offset: Int): Long {
     if (offset + 4 > size) return 0
-    return (this[offset].toLong() and 0xFF)
-        or ((this[offset + 1].toLong() and 0xFF) shl 8)
-        or ((this[offset + 2].toLong() and 0xFF) shl 16)
-        or ((this[offset + 3].toLong() and 0xFF) shl 24)
+    return (this[offset].toLong() and 0xFF) +
+        ((this[offset + 1].toLong() and 0xFF) shl 8) +
+        ((this[offset + 2].toLong() and 0xFF) shl 16) +
+        ((this[offset + 3].toLong() and 0xFF) shl 24)
 }
 
 internal fun ByteArray.uint32BigEndianAt(offset: Int): Long {
     if (offset + 4 > size) return 0
-    return ((this[offset].toLong() and 0xFF) shl 24)
-        or ((this[offset + 1].toLong() and 0xFF) shl 16)
-        or ((this[offset + 2].toLong() and 0xFF) shl 8)
-        or (this[offset + 3].toLong() and 0xFF)
+    return ((this[offset].toLong() and 0xFF) shl 24) +
+        ((this[offset + 1].toLong() and 0xFF) shl 16) +
+        ((this[offset + 2].toLong() and 0xFF) shl 8) +
+        (this[offset + 3].toLong() and 0xFF)
 }
